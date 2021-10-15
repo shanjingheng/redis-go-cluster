@@ -88,13 +88,13 @@ func (node *redisNode) getConn() (*redisConn, error) {
 		}
 
 		if node.useTLS {
-			nd := &net.Dialer{}
-			tc, err := tls.DialWithDialer(nd, "tcp", node.address, &tls.Config{InsecureSkipVerify: true})
-			if err != nil {
-				return nil, err
-			}
+			// nd := &net.Dialer{}
+			// tc, err := tls.DialWithDialer(nd, "tcp", node.address, &tls.Config{InsecureSkipVerify: true})
+			// if err != nil {
+			// 	return nil, err
+			// }
 			tlsConfig := &tls.Config{InsecureSkipVerify: true}
-			tlsConn := tls.Client(tc, tlsConfig)
+			tlsConn := tls.Client(c, tlsConfig)
 			errc := make(chan error, 2) // buffered so we don't block timeout or Handshake
 			if d := node.connTimeout; d != 0 {
 				timer := time.AfterFunc(d, func() {
