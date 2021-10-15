@@ -16,13 +16,13 @@ package redis
 
 import (
 	"errors"
-	"log"
 	"fmt"
-	"time"
-	"sync"
-	"strings"
-	"strconv"
+	"log"
 	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Options is used to initialize a new redis cluster.
@@ -37,9 +37,10 @@ type Options struct {
 	AliveTime time.Duration // Keep alive timeout
 
 	Password string
+	UseTLS   bool
 }
 
-// Cluster is a redis client that manage connections to redis nodes, 
+// Cluster is a redis client that manage connections to redis nodes,
 // cache and update cluster info, and execute all kinds of commands.
 // Multiple goroutines may invoke methods on a cluster simutaneously.
 type Cluster struct {
@@ -95,6 +96,7 @@ func NewCluster(options *Options) (*Cluster, error) {
 			keepAlive:    options.KeepAlive,
 			aliveTime:    options.AliveTime,
 			password:     options.Password,
+			useTLS:       options.UseTLS,
 		}
 
 		err := cluster.update(node)
@@ -112,13 +114,13 @@ func NewCluster(options *Options) (*Cluster, error) {
 }
 
 // Do excute a redis command with random number arguments. First argument will
-// be used as key to hash to a slot, so it only supports a subset of redis 
+// be used as key to hash to a slot, so it only supports a subset of redis
 // commands.
 ///
 // SUPPORTED: most commands of keys, strings, lists, sets, sorted sets, hashes.
 // NOT SUPPORTED: scripts, transactions, clusters.
-// 
-// Particularly, MSET/MSETNX/MGET are supported using result aggregation. 
+//
+// Particularly, MSET/MSETNX/MGET are supported using result aggregation.
 // To MSET/MSETNX, there's no atomicity gurantee that given keys are set at once.
 // It's possible that some keys are set, while others not.
 //
@@ -210,7 +212,7 @@ func (cluster *Cluster) ChooseNodeWithCmd(cmd string, args ...interface{}) (*red
 			if i == 0 {
 				node = curNode
 			} else if node != curNode {
-				return nil, fmt.Errorf("all keys in the mset/msetnx script should be hashed into the same node, " +
+				return nil, fmt.Errorf("all keys in the mset/msetnx script should be hashed into the same node, "+
 					"current key[%v] node[%v] != previous_node[%v]", args[i], curNode.address, node.address)
 			}
 		}
@@ -236,9 +238,9 @@ func (cluster *Cluster) ChooseNodeWithCmd(cmd string, args ...interface{}) (*red
 
 		var slot uint16
 		for i := 0; i < nr; i++ {
-			curSlot, err := GetSlot(args[2 + i])
+			curSlot, err := GetSlot(args[2+i])
 			if err != nil {
-				return nil, fmt.Errorf("get slot of parameter[%v] failed[%v]", args[2 + i], err)
+				return nil, fmt.Errorf("get slot of parameter[%v] failed[%v]", args[2+i], err)
 			}
 
 			if i == 0 {

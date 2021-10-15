@@ -16,13 +16,20 @@
 package redis
 
 import (
+	"bufio"
+	"container/list"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
 	"time"
-	"bufio"
-	"container/list"
 )
+
+type tlsHandshakeTimeoutError struct{}
+
+func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
+func (tlsHandshakeTimeoutError) Temporary() bool { return true }
+func (tlsHandshakeTimeoutError) Error() string   { return "TLS handshake timeout" }
 
 type redisNode struct {
 	address string
@@ -42,6 +49,7 @@ type redisNode struct {
 	closed bool
 
 	password string
+	useTLS   bool
 }
 
 func (node *redisNode) getConn() (*redisConn, error) {
@@ -77,6 +85,27 @@ func (node *redisNode) getConn() (*redisConn, error) {
 		c, err := net.DialTimeout("tcp", node.address, node.connTimeout)
 		if err != nil {
 			return nil, err
+		}
+
+		if node.useTLS {
+			tlsConfig := &tls.Config{InsecureSkipVerify: false}
+			tlsConn := tls.Client(c, tlsConfig)
+			errc := make(chan error, 2) // buffered so we don't block timeout or Handshake
+			if d := node.connTimeout; d != 0 {
+				timer := time.AfterFunc(d, func() {
+					errc <- tlsHandshakeTimeoutError{}
+				})
+				defer timer.Stop()
+			}
+			go func() {
+				errc <- tlsConn.Handshake()
+			}()
+			if err := <-errc; err != nil {
+				// Timeout or Handshake error.
+				c.Close() // nolint: errcheck
+				return nil, err
+			}
+			c = tlsConn
 		}
 
 		conn := &redisConn{
