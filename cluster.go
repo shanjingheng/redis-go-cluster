@@ -59,6 +59,8 @@ type Cluster struct {
 
 	password string // the whole cluster should only has one password
 
+	useTLS bool
+
 	rwLock sync.RWMutex
 
 	closed bool
@@ -84,6 +86,7 @@ func NewCluster(options *Options) (*Cluster, error) {
 		aliveTime:    options.AliveTime,
 		updateList:   make(chan updateMesg),
 		password:     options.Password,
+		useTLS:       options.UseTLS,
 	}
 
 	errList := make([]error, 0)
@@ -512,6 +515,7 @@ func (cluster *Cluster) update(node *redisNode) error {
 				keepAlive:    cluster.keepAlive,
 				aliveTime:    cluster.aliveTime,
 				password:     cluster.password,
+				useTLS:       cluster.useTLS,
 			}
 		}
 

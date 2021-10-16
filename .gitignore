@@ -12,3 +12,6 @@ logs
 *.log
 tags
 .DS_Store
+aws
+go.mod
+go.sum

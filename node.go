@@ -18,6 +18,7 @@ package redis
 import (
 	"bufio"
 	"container/list"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -86,13 +87,12 @@ func (node *redisNode) getConn() (*redisConn, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		if node.useTLS {
-			// nd := &net.Dialer{}
-			// tc, err := tls.DialWithDialer(nd, "tcp", node.address, &tls.Config{InsecureSkipVerify: true})
-			// if err != nil {
-			// 	return nil, err
-			// }
+			dialer := &net.Dialer{
+				Timeout:   time.Second * 30,
+				KeepAlive: time.Second * time.Duration(node.keepAlive),
+			}
+			c, err = dialer.DialContext(context.Background(), "tcp", node.address)
 			tlsConfig := &tls.Config{InsecureSkipVerify: true}
 			tlsConn := tls.Client(c, tlsConfig)
 			errc := make(chan error, 2) // buffered so we don't block timeout or Handshake
